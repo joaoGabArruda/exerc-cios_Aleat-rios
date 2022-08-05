@@ -2,7 +2,19 @@ Faça uma função que receba o id de um cliente e de uma operadora, e verifique
 sim, deve dar um desconto de 50% no seu contrato que possui o maior valor. Senão deve criar um contrato do cliente com essa operadora, 
 usando o menor valor do plano desta operadora.
 
-RESPOSTA 1 - TUDO JUNTO
+
+| Tendo a o seguinte Banco: (FIQUE ESPERTO COM AS CHAVES PRIMÁRIAS E ESTRANGEIRAS) |
+
+Cliente (id, cpf, nome, rg, sexo, uf)
+Operadora (id, nome, cnpj)
+Telefone (id, numero, operadora_id)
+Plano (id, valor, operadora_id, descricao)
+Contrato(id, cliente_id, telefone_id, plano_id, data_contrato, valor_final)
+
+
+-- ________________________________________________________________________________________________________________________________________
+
+RESPOSTA 1 - TUDO JUNTO E MISTURADO (OQ DÁ PARA FAZER É ESCREVER DUAS FUNÇÕES ADICIONAIS: 1 P/ O "IF" E OUTRA PARA O "ELSE" A FIM DE DEIXAR MAIS ORGANIZADO, MAS FIQUEI COM PREGUIÇA)
 
 -- cria a função "verifica_cliente" com o id do cliente e da operadora como entradas e retorna nada
 create or replace function verifica_cliente (in Cliente int, in operadora int) returns void as $$ 
@@ -22,18 +34,18 @@ if auxiliar is null then -- se o cliente nao possui um contrato, a variável aux
 raise notice 'cliente sem contrato';
 
 -- salva o plano_id na variável "auxiliar" e o menor preço na variável "value" para serem inseridos depois 
-select id, valor into auxiliar, value from plano where valor = (select min(valor) from plano where operadora_id = 3); 
+select id, valor into auxiliar, value from plano where valor = (select min(valor) from plano where operadora_id = operadora); 
 
 -- seleciona a data de hoje para ser inserido depois
 select date(now()) into dia;
 
--- seleciona o numero de telefone na variável "comp" que ainda não foi usada em um contrato - usa da técnica de "exclusive full outer join"
+-- seleciona o numero de telefone que ainda não foi usada em um contrato na variável "comp" - usa da técnica de "exclusive full outer join"
 select telefone.id into comp from telefone full outer join contrato on telefone.id = contrato.telefone_id where telefone.id is null or contrato.telefone_id is 
 null and telefone.operadora_id = operadora order by telefone.id limit 1;
 
-insert into contrato values (13, cliente,comp.id,auxiliar,dia, value);
+insert into contrato (cliente_id, telefone_id, plano_id, data_contrato, valor_final) values (cliente,comp.id,auxiliar,dia, value);
 
-else
+else -- se o cliente possui um contrato, é só diminuir 50% do contrato de maior valor
 select id, valor_final into auxiliar, value from contrato where valor_final = (select max(valor_final) from contrato where cliente_id = cliente);
 value := value/2;
 
@@ -41,18 +53,22 @@ update contrato set valor_Final = value where id = auxiliar;
 raise notice 'valor final atualizado';
 end if;
 end;$$ language plpgsql;
+-- _______________________________________________________________________________________________________________________________________________________________
+
+--VALORES SE QUISER TESTAR
+select verifica_cliente(49,3); -- deveria mudar o valor do contrato de "id=12" de 150 para 75 reais
+select verifica_cliente(49,3); -- deveria mudar o valor do contrato de "id=11" de 100 para 50 reais
+select verifica_cliente(1,3); -- deveria mudar o valor do contrato de "id=6" de 93,82 para 46,91 reais
+
+select verifica_cliente(2,3); -- deveria adicionar: cliente_ id = 2, telefone_id = 3, plano_id = 6, data_contrato = 2022-08-05, valor_final = 38.34
+select verifica_cliente(3,3); -- deveria adicionar: cliente_ id = 3, telefone_id = 12, plano_id = 6, data_contrato = 2022-08-05, valor_final = 38.34
+select verifica_cliente(29,1); -- deveria adicionar: cliente_ id = 29, telefone_id = 1, plano_id = 8, data_contrato = 2022-08-05, valor_final = 54.71
+select verifica_cliente(29,1); -- deveria mudar o valor do contrato recem adicionado de  54.71 para  27.36 reais
 
 
 
-| Tendo a o seguinte Banco: |
 
-Cliente (id, cpf, nome, rg, sexo, uf)
-Operadora (id, nome, cnpj)
-Telefone (id, numero, operadora_id)
-Plano (id, valor, operadora_id, descricao)
-Contrato(id, cliente_id, telefone_id, plano_id, data_contrato, valor_final)
-
-| Populando o banco: | 
+| Populando o banco: (PODE USAR SE QUISER, OS VALORES NÃO ESTÃO TODOS CERTINHOS E CORRESPONDENTES, MAS DÁ PRO GASTO | 
 CLIENTE:
 INSERT INTO cliente (id,cpf,nome,rg,sexo,uf)
 VALUES
@@ -168,6 +184,6 @@ VALUES
   (7,24,23,4,'2021-10-16',36.68),
   (8,35,5,1,'2022-04-28',67.52),
   (9,44,7,7,'2021-09-24',31.32),
-  (10,12,21,5,'2022-04-28',27.47);
-  
-  
+  (10,12,21,5,'2022-04-28',27.47)
+  (11,49,2,5, '2022-08-23',100.00)
+  (12,49,6,5,'2022-08-23',150.00);
