@@ -31,8 +31,6 @@ select telefone_id into auxiliar from contrato where cliente_id = cliente; -- ve
 
 if auxiliar is null then -- se o cliente nao possui um contrato, a variável auxiliar vai ser nula
 
-raise notice 'cliente sem contrato';
-
 -- salva o plano_id na variável "auxiliar" e o menor preço na variável "value" para serem inseridos depois 
 select id, valor into auxiliar, value from plano where valor = (select min(valor) from plano where operadora_id = operadora); 
 
@@ -43,14 +41,20 @@ select date(now()) into dia;
 select telefone.id into comp from telefone full outer join contrato on telefone.id = contrato.telefone_id where telefone.id is null or contrato.telefone_id is 
 null and telefone.operadora_id = operadora order by telefone.id limit 1;
 
+if comp.id is null then -- se todos os numeros da operadora fornecida estiverem sendo usados, cancele o procedimento e informe...
+raise exception 'Numero maximo de telefones dessa operadora sendo utilizados! Por favor, adicione novos numeros!'
+end if;
+
 insert into contrato (cliente_id, telefone_id, plano_id, data_contrato, valor_final) values (cliente,comp.id,auxiliar,dia, value);
+
+raise notice 'Novo cliente adicionado com sucesso'; -- confirmação de que tudo ocorreu corretamente
 
 else -- se o cliente possui um contrato, é só diminuir 50% do contrato de maior valor
 select id, valor_final into auxiliar, value from contrato where valor_final = (select max(valor_final) from contrato where cliente_id = cliente);
 value := value/2;
 
 update contrato set valor_Final = value where id = auxiliar;
-raise notice 'valor final atualizado';
+raise notice 'Valor final atualizado com sucesso'; -- confirmação de que tudo ocorreu corretamente
 end if;
 end;$$ language plpgsql;
 -- _______________________________________________________________________________________________________________________________________________________________
