@@ -42,7 +42,7 @@ select telefone.id into comp from telefone full outer join contrato on telefone.
 null and telefone.operadora_id = operadora order by telefone.id limit 1;
 
 if comp.id is null then -- se todos os numeros da operadora fornecida estiverem sendo usados, cancele o procedimento e informe...
-raise exception 'Numero maximo de telefones dessa operadora sendo utilizados! Por favor, adicione novos numeros!'
+raise exception 'Numero maximo de telefones dessa operadora sendo utilizados! Por favor, adicione novos numeros!';
 end if;
 
 insert into contrato (cliente_id, telefone_id, plano_id, data_contrato, valor_final) values (cliente,comp.id,auxiliar,dia, value);
